@@ -1,0 +1,31 @@
+[project]
+name = "cubesat-auth"
+version = "0.1.0"
+description = "CLI utility demonstrating authentication and RBAC for a CubeSat system"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "typer",
+    "sqlalchemy",
+    "argon2-cffi",
+    "python-dotenv",
+    "rich",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+]
+
+[project.scripts]
+cubesat-auth = "cubesat_auth.cli:app"
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]

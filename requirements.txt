@@ -1,0 +1,6 @@
+typer
+sqlalchemy
+argon2-cffi
+python-dotenv
+pytest
+rich
