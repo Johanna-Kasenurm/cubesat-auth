@@ -19,6 +19,7 @@ dev = [
 
 [project.scripts]
 cubesat-auth = "cubesat_auth.cli:app"
+cs = "cubesat_auth.cli:app"
 
 [build-system]
 requires = ["setuptools>=61"]
@@ -29,3 +30,9 @@ package-dir = {"" = "src"}
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+# So Pylance/Pyright resolve third-party deps from the project venv (create with
+# `python -m venv .venv` and `pip install -e ".[dev]"`).
+[tool.pyright]
+venvPath = "."
+venv = ".venv"
