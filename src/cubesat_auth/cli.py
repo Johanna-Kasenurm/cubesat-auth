@@ -96,9 +96,21 @@ def logout():
     typer.echo("[SESSION] Logged out")
     
 
+# Show information about the current session
+@auth_app.command("whoami", help="Display the current session information")
 def whoami():
-    print("Current session information")
+    try:
+        current_user = get_current_user()
+    except ValueError as e:
+        typer.echo(f"[ERROR] {e}")
+        raise typer.Exit(1)
+    
+    typer.echo(f"[SESSION] Logged in as {current_user.username}")
+    typer.echo(f"[AUTHZ] User role: {current_user.role}")
 # --------------------------------
+
+
+
 
 # Account management commands
 # --------------------------------
