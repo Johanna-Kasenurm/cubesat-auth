@@ -17,3 +17,10 @@ def verify_password(password: str, password_hash: str) -> bool:
     except VerifyMismatchError:
         return False
 
+# Generate a secure random session token
+def generate_token() -> str:
+    return secrets.token_urlsafe(32)
+
+# Hash a session token for storage
+def hash_token(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
