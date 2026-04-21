@@ -89,10 +89,13 @@ def login(username: str = typer.Option(..., "--username", "-u", help="Username t
     
 
 
+# Log out the current user
+@auth_app.command("logout", help="Logout of the system")
 def logout():
-    print("Logging out")
+    logout_user()
+    typer.echo("[SESSION] Logged out")
+    
 
-@auth_app.command("whoami")
 def whoami():
     print("Current session information")
 # --------------------------------
