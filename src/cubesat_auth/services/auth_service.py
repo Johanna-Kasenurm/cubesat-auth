@@ -81,3 +81,28 @@ def get_current_user() -> User:
         return user
 
 
+"""
+Revokes the current session in the database
+Clears the local session file
+"""
+def logout_user() -> None:
+    # Load the session from the local file
+    local_session = load_local_session()
+    if not local_session or "token" not in local_session:
+        clear_local_session()
+        return
+
+    token_hash = hash_token(local_session["token"])
+
+    with Session() as db:
+        # Query the database for the session using the sessiontoken hash
+        query = select(Session).where(Session.token_hash == token_hash)
+        session_obj = db.execute(query).scalar_one_or_none()
+
+        # Revoke the session if it exists
+        if session_obj is not None:
+            session_obj.revoked = True
+            db.commit()
+
+        # Clear the local session file
+        clear_local_session()
