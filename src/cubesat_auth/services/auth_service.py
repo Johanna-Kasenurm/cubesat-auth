@@ -45,3 +45,39 @@ def login_user(username: str, password: str) -> tuple[str, str]:
         return user.username, user.role
 
 
+"""
+Retrieves the current user from the database using the session token from the local file
+Raises ValueError if the session is invalid or expired
+Returns the User object
+"""
+def get_current_user() -> User:
+    # Get the session token from the local file
+    local_session = load_local_session()
+    if not local_session or "token" not in local_session:
+        raise ValueError("No active session. Please login first.")
+
+    token_hash = hash_token(local_session["token"])
+
+    with Session() as db:
+        # Query the database for the session using the token hash
+        query = (
+            select(Session)
+            .where(Session.token_hash == token_hash)
+            .where(Session.revoked.is_(False))
+        )
+        session_obj = db.execute(query).scalar_one_or_none()
+
+        if session_obj is None:
+            raise ValueError("Invalid session. Please login again.")
+        
+        if session_obj.expires_at < datetime.now(timezone.utc):
+            raise ValueError("Session has expired. Please login again.")
+
+        # Get the user from the session
+        user = session_obj.user
+        if user is None:
+            raise ValueError("Invalid session. Please login again.")
+
+        return user
+
+
