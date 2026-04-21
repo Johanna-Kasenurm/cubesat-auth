@@ -10,7 +10,15 @@ It provides command groups for:
 
 """
 
+from enum import Enum
+from sqlalchemy import select
 import typer
+
+from cubesat_auth.services.auth_service import login_user, get_current_user, logout_user
+from cubesat_auth.db import SessionLocal, init_db
+from cubesat_auth.models import User
+from cubesat_auth.security import hash_password
+
 
 # Crea the main app and sub-apps
 app = typer.Typer(help="CubeSat Authentication and Authorisation CLI")
@@ -24,9 +32,39 @@ app.add_typer(account_app, name="account")
 app.add_typer(sat_app, name="sat")
 
 
+class Role(str, Enum):
+    ADMIN = "Admin"
+    SUPERUSER = "SuperUser"
+    USER = "User"
+
+
+# Initialise the system and create the initial administrator account
 @app.command()
 def init(admin_username: str = typer.Option(..., "--admin-username", "-u", help="Username for the initial administrator account.")):
-    print(f"Initialising with admin username: {admin_username}")
+    init_db()
+
+    password = typer.prompt("Admin password", hide_input=True, confirmation_prompt=True)
+
+    with SessionLocal() as db:
+        # Check if an administrator account already exists
+        existing = db.execute(select(User).where(User.role == Role.ADMIN)).scalar_one_or_none()
+        if existing:
+            typer.echo("[ERROR] An administrator account already exists.")
+            raise typer.Exit(1)
+
+        # Create the administrator account
+        user = User(
+            username=admin_username,
+            password_hash=hash_password(password),
+            role=Role.ADMIN
+            )
+        db.add(user)
+        db.commit()
+
+        print(f"[OK] Administrator account created: {admin_username}")
+
+
+
 
 # Authentication commands
 # --------------------------------
@@ -58,11 +96,16 @@ def create(username: str = typer.Option(..., "--username", "-u", help="Username 
 def delete(username: str = typer.Option(..., "--username", "-u", help="Username of the account to delete.")):
     print(f"Deleting account with username: {username}")
 
-@account_app.command("assign-role")
+
+@account_app.command("assign-role", help="Assign a role to an account")
 def assign_role(username: str = typer.Option(..., "--username", "-u", help="Username of the account to assign the role to."), 
     role: str = typer.Option(..., "--role", "-r", help="Possible roles are User, SuperUser and Admin.")):
     print(f"Assigning role {role} to account with username: {username}")
 # --------------------------------
+
+
+
+
 
 # Satellite operations commands
 # --------------------------------
@@ -74,3 +117,8 @@ def view_data():
 def send_command(command: str = typer.Option(..., "--command", "-c", help="command to send to the satellite.")):
     print(f"Sending command: {command}")
 # --------------------------------
+
+
+
+if __name__ == "__main__":
+    app()

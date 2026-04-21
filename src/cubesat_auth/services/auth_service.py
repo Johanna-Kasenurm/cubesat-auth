@@ -1,10 +1,17 @@
 from datetime import datetime, timezone
 from sqlalchemy import select
 
-from cubesat_auth.db import Session
+from cubesat_auth.db import SessionLocal
 from cubesat_auth.models import User, Session
 from cubesat_auth.security import hash_password, verify_password, hash_token, generate_token
 from cubesat_auth.sessions import save_local_session, load_local_session, clear_local_session
+
+
+# Normalise the timezone of a datetime object to UTC for safe comparison
+def normalise_utc(dt: datetime) -> datetime:
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
 
 
 """
@@ -16,7 +23,7 @@ Returns (username, role)
 Raises ValueError if authentication fails
 """
 def login_user(username: str, password: str) -> tuple[str, str]:
-    with Session() as db:
+    with SessionLocal() as db:
         # Query the database for the user by username
         query = select(User).where(User.username == username)
         user = db.execute(query).scalar_one_or_none()
@@ -58,7 +65,7 @@ def get_current_user() -> User:
 
     token_hash = hash_token(local_session["token"])
 
-    with Session() as db:
+    with SessionLocal() as db:
         # Query the database for the session using the token hash
         query = (
             select(Session)
@@ -70,7 +77,7 @@ def get_current_user() -> User:
         if session_obj is None:
             raise ValueError("Invalid session. Please login again.")
         
-        if session_obj.expires_at < datetime.now(timezone.utc):
+        if normalise_utc(session_obj.expires_at) < datetime.now(timezone.utc):
             raise ValueError("Session has expired. Please login again.")
 
         # Get the user from the session
@@ -94,7 +101,7 @@ def logout_user() -> None:
 
     token_hash = hash_token(local_session["token"])
 
-    with Session() as db:
+    with SessionLocal() as db:
         # Query the database for the session using the sessiontoken hash
         query = select(Session).where(Session.token_hash == token_hash)
         session_obj = db.execute(query).scalar_one_or_none()
