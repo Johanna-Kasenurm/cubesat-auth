@@ -68,11 +68,27 @@ def init(admin_username: str = typer.Option(..., "--admin-username", "-u", help=
 
 # Authentication commands
 # --------------------------------
-@auth_app.command("login")
+@auth_app.command("login", help="Login to the system")
 def login(username: str = typer.Option(..., "--username", "-u", help="Username to login with.")):
-    print(f"Logging in with username: {username}")
+    # Prompt for a password (input hidden)
+    password = typer.prompt("Password", hide_input=True, confirmation_prompt=False)
 
-@auth_app.command("logout")
+    if not password:
+        typer.echo("[ERROR] Password can not be empty.")
+        return
+    
+    try:
+        logged_in_user, role = login_user(username, password)
+    except ValueError as e:
+        typer.echo(f"[ERROR] {e}")
+        raise typer.Exit(1)
+
+    typer.echo(f"[AUTHN] Username/password verified")
+    typer.echo(f"[SESSION] Logged in as {logged_in_user}")
+    typer.echo(f"[AUTHZ] User role: {role}")
+    
+
+
 def logout():
     print("Logging out")
 
