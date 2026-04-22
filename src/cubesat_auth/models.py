@@ -45,3 +45,22 @@ class Session(Base):
 
     # One session belongs to one user
     user = relationship("User", back_populates="sessions") # each session belongs to a single user
+
+
+# Create the audit logs table
+class AuditLog(Base):
+    __tablename__ = "adit_logs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    # Nullable so unknown users can be logged
+    username: Mapped[str | None] = mapped_column(String(50), nullable=True, index=True)
+    # Example actions: login, logout, create-user, delete-user, etc.
+    action: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    # Example results: success, failure, locked, expired, etc.
+    result: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
+    # Additional human readable details about the action
+    details: Mapped[str] = mapped_column(String(255), nullable=True)
+    timestamp: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc)
+    )

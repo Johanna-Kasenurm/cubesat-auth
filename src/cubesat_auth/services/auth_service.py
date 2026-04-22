@@ -6,6 +6,7 @@ from cubesat_auth.config import TOKEN_EXPIRY_HOURS, MAX_FAILED_LOGIN_ATTEMPTS, A
 from cubesat_auth.models import User, Session
 from cubesat_auth.security import hash_password, verify_password, hash_token, generate_token
 from cubesat_auth.sessions import save_local_session, load_local_session, clear_local_session
+from cubesat_auth.audit import write_audit_log
 
 
 # Normalise the timezone of a datetime object to UTC for safe comparison
@@ -30,6 +31,12 @@ def login_user(username: str, password: str) -> tuple[str, str]:
         user = db.execute(query).scalar_one_or_none()
 
         if user is None:
+            write_audit_log(
+                action="login",
+                result="FAILURE",
+                username=username,
+                details="Invalid username or password"
+            )
             raise ValueError("Invalid username or password")
 
         # Check if the account is locked
@@ -38,6 +45,12 @@ def login_user(username: str, password: str) -> tuple[str, str]:
             # The account is still locked
             if locked_until > datetime.now(timezone.utc):
                 remaining_seconds = int((locked_until - datetime.now(timezone.utc)).total_seconds())
+                write_audit_log(
+                    action="login",
+                    result="LOCKED",
+                    username=username,
+                    details=f"Account is locked. Please try again in {remaining_seconds} seconds."
+                )
                 raise ValueError(f"Account is locked. Please try again in {remaining_seconds} seconds.")
             # Lock has expired, reset the account
             else:
@@ -54,10 +67,26 @@ def login_user(username: str, password: str) -> tuple[str, str]:
                 # Lock the account for the specified time
                 user.locked_until = datetime.now(timezone.utc) + timedelta(minutes=ACCOUNT_LOCK_MINUTES)
                 db.commit()
+
+                write_audit_log(
+                    action="login",
+                    result="LOCKED",
+                    username=username,
+                    details=f"Account locked after {MAX_FAILED_LOGIN_ATTEMPTS} failed login attempts."
+                )
+
                 raise ValueError(f"Too many failed login attempts. Account locked for {ACCOUNT_LOCK_MINUTES} minute(s).")
             db.commit()
             remaining_attempts = MAX_FAILED_LOGIN_ATTEMPTS - user.failed_login_attempts
-            raise ValueError(f"Invalid username or password. {remaining_attempts} attempt(s) remaining.")
+
+            write_audit_log(
+                action="login",
+                result="FAILURE",
+                username=username,
+                details=f"Invalid username or password. {remaining_attempts} attempt(s) remaining."
+            )
+
+            raise ValueError(f"Invalid username or password.")
 
         # Correct password, reset the failed login attempts and clear any old lockout
         user.failed_login_attempts = 0
@@ -77,6 +106,14 @@ def login_user(username: str, password: str) -> tuple[str, str]:
 
         # Save the raw session token to the local file
         save_local_session(user.username, raw_token, datetime.now(timezone.utc), datetime.now(timezone.utc) + timedelta(hours=TOKEN_EXPIRY_HOURS))
+
+        write_audit_log(
+            action="login",
+            result="SUCCESS",
+            username=username,
+            details="User logged in successfully."
+        )
+
         return user.username, user.role
 
 
@@ -123,7 +160,17 @@ Clears the local session file
 def logout_user() -> None:
     # Load the session from the local file
     local_session = load_local_session()
+
+    # If the local session file doesn't exist or there is no session token
     if not local_session or "token" not in local_session:
+
+        write_audit_log(
+            action="logout",
+            result="FAILURE",
+            username=None,
+            details="Logout attempted with no active local session."
+        )
+
         clear_local_session()
         return
 
@@ -134,10 +181,40 @@ def logout_user() -> None:
         query = select(Session).where(Session.token_hash == token_hash)
         session_obj = db.execute(query).scalar_one_or_none()
 
-        # Revoke the session if it exists
-        if session_obj is not None:
-            session_obj.revoked = True
-            db.commit()
+        # If the session doesn't exist
+        if session_obj is None:
+            write_audit_log(
+                action="logout",
+                result="FAILURE",
+                username=None,
+                details="Logout attempted with invalid or unknown session token."
+            )
+            clear_local_session()
+            return
 
-        # Clear the local session file
-        clear_local_session()
+        username = session_obj.user.username if session_obj.user else None
+
+        # If the session is already revoked
+        if session_obj.revoked:
+            write_audit_log(
+                action="logout",
+                result="FAILURE",
+                username=username,
+                details="Logout attempted on an already revokded session."
+            )
+            clear_local_session()
+            return
+
+        # Revoke the session
+        session_obj.revoked = True
+        db.commit()
+
+        write_audit_log(
+            action="logout",
+            result="SUCCESS",
+            username=username,
+            details="User logged out successfully."
+        )
+
+    # Clear the local session file
+    clear_local_session()

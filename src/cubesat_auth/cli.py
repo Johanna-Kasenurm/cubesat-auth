@@ -4,6 +4,7 @@ authentication and role-based access control (RBAC) system using Typer.
 
 It provides command groups for:
 - System initialisation (init)
+- Audit loging (list)
 - Authentication (login, logout, whoami)
 - Account management (create, delete, assign-role, list)
 - Satellit opertations (view-data, send-command)
@@ -16,7 +17,7 @@ import typer
 
 from cubesat_auth.services.auth_service import login_user, get_current_user, logout_user
 from cubesat_auth.db import SessionLocal, init_db
-from cubesat_auth.models import User
+from cubesat_auth.models import User, AuditLog
 from cubesat_auth.security import hash_password
 
 
@@ -25,11 +26,13 @@ app = typer.Typer(help="CubeSat Authentication and Authorisation CLI")
 auth_app = typer.Typer(help="Authentication commands")
 account_app = typer.Typer(help="Account management commands")
 sat_app = typer.Typer(help="Satellite operations commands")
+audit_app = typer.Typer(help="Audit log commands")
 
 # Add the sub-apps to the main app
 app.add_typer(auth_app, name="auth")
 app.add_typer(account_app, name="account")
 app.add_typer(sat_app, name="sat")
+app.add_typer(audit_app, name="audit")
 
 
 class Role(str, Enum):
@@ -64,6 +67,25 @@ def init(admin_username: str = typer.Option(..., "--admin-username", "-u", help=
         print(f"[OK] Administrator account created: {admin_username}")
 
 
+
+# Audit commands
+# --------------------------------
+@audit_app.command("list", help="List audit logs")
+def list_audit_logs(limit: int = typer.Option(20, "--limit", "-l", help="Number of log entries to show.")):
+    with SessionLocal() as db:
+        # Query the logs from the database
+        query = select(AuditLog).order_by(AuditLog.timestamp.desc()).limit(limit)
+        logs = db.execute(query).scalars().all()
+
+        if not logs:
+            typer.echo("No audit logs found.")
+            return
+        
+        for log in logs:
+            typer.echo(
+                f"[{log.timestamp}]   user={log.username}  action={log.action}  result={log.result}  details={log.details}"
+            )
+# --------------------------------
 
 
 # Authentication commands
