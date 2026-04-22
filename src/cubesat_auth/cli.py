@@ -84,7 +84,7 @@ def login(username: str = typer.Option(..., "--username", "-u", help="Username t
         raise typer.Exit(1)
 
     typer.echo(f"[AUTHN] Username/password verified")
-    typer.echo(f"[SESSION] Logged in as {logged_in_user}")
+    typer.echo(f"[SESSION] Logged in as: {logged_in_user}")
     typer.echo(f"[AUTHZ] User role: {role}")
     
 
@@ -100,13 +100,16 @@ def logout():
 @auth_app.command("whoami", help="Display the current session information")
 def whoami():
     try:
-        current_user = get_current_user()
+        current_user, current_session = get_current_user()
     except ValueError as e:
         typer.echo(f"[ERROR] {e}")
         raise typer.Exit(1)
     
-    typer.echo(f"[SESSION] Logged in as {current_user.username}")
+    typer.echo(f"[SESSION] Logged in as: {current_user.username}")
     typer.echo(f"[AUTHZ] User role: {current_user.role}")
+    typer.echo(f"[SESSION] Created at: {current_session.created_at}")
+    typer.echo(f"[SESSION] Expires at: {current_session.expires_at}")
+    typer.echo(f"[SESSION] Revoked: {current_session.revoked}")
 # --------------------------------
 
 
