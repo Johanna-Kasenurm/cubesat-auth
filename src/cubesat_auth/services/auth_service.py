@@ -1,7 +1,8 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from sqlalchemy import select
 
 from cubesat_auth.db import SessionLocal
+from cubesat_auth.config import TOKEN_EXPIRY_HOURS, MAX_FAILED_LOGIN_ATTEMPTS, ACCOUNT_LOCK_MINUTES
 from cubesat_auth.models import User, Session
 from cubesat_auth.security import hash_password, verify_password, hash_token, generate_token
 from cubesat_auth.sessions import save_local_session, load_local_session, clear_local_session
@@ -31,10 +32,37 @@ def login_user(username: str, password: str) -> tuple[str, str]:
         if user is None:
             raise ValueError("Invalid username or password")
 
+        # Check if the account is locked
+        if user.locked_until is not None:
+            locked_until = normalise_utc(user.locked_until)
+            # The account is still locked
+            if locked_until > datetime.now(timezone.utc):
+                remaining_seconds = int((locked_until - datetime.now(timezone.utc)).total_seconds())
+                raise ValueError(f"Account is locked. Please try again in {remaining_seconds} seconds.")
+            # Lock has expired, reset the account
+            else:
+                user.locked_until = None
+                user.failed_login_attempts = 0
+                db.commit()
+
         # Verify the password
         if not verify_password(password, user.password_hash):
-            raise ValueError("Invalid username or password")
-        
+            user.failed_login_attempts += 1
+
+            # Check if the failed login attempts have reached the maximum
+            if user.failed_login_attempts >= MAX_FAILED_LOGIN_ATTEMPTS:
+                # Lock the account for the specified time
+                user.locked_until = datetime.now(timezone.utc) + timedelta(minutes=ACCOUNT_LOCK_MINUTES)
+                db.commit()
+                raise ValueError(f"Too many failed login attempts. Account locked for {ACCOUNT_LOCK_MINUTES} minute(s).")
+            db.commit()
+            remaining_attempts = MAX_FAILED_LOGIN_ATTEMPTS - user.failed_login_attempts
+            raise ValueError(f"Invalid username or password. {remaining_attempts} attempt(s) remaining.")
+
+        # Correct password, reset the failed login attempts and clear any old lockout
+        user.failed_login_attempts = 0
+        user.locked_until = None
+
         # Generate a new session token
         raw_token = generate_token()
         token_hash = hash_token(raw_token)
@@ -48,7 +76,7 @@ def login_user(username: str, password: str) -> tuple[str, str]:
         db.commit()
 
         # Save the raw session token to the local file
-        save_local_session(raw_token)
+        save_local_session(user.username, raw_token, datetime.now(timezone.utc), datetime.now(timezone.utc) + timedelta(hours=TOKEN_EXPIRY_HOURS))
         return user.username, user.role
 
 
@@ -57,7 +85,7 @@ Retrieves the current user from the database using the session token from the lo
 Raises ValueError if the session is invalid or expired
 Returns the User object
 """
-def get_current_user() -> User:
+def get_current_user() -> tuple[User, Session]:
     # Get the session token from the local file
     local_session = load_local_session()
     if not local_session or "token" not in local_session:
@@ -85,7 +113,7 @@ def get_current_user() -> User:
         if user is None:
             raise ValueError("Invalid session. Please login again.")
 
-        return user
+        return user, session_obj
 
 
 """

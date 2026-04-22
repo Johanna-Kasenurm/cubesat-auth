@@ -15,7 +15,12 @@ class User(Base):
     username: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, index=True)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     role: Mapped[str] = mapped_column(String(20), nullable=False, default="User")
-    created_at: Mapped[datetime] = mapped_column(DateTime, default= lambda:datetime.now(timezone.utc))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), 
+        default= lambda:datetime.now(timezone.utc)
+        )
+    failed_login_attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    locked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # One user can have many sessions
     sessions = relationship("Session", back_populates="user", cascade="all, delete-orphan") # cascade to delete all sessions when the user is deleted
@@ -28,8 +33,14 @@ class Session(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
     token_hash: Mapped[str] = mapped_column(String(255), nullable=False, unique=True, index=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
-    expires_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc) + timedelta(hours=TOKEN_EXPIRY_HOURS))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), 
+        default=lambda: datetime.now(timezone.utc)
+        )
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), 
+        default=lambda: datetime.now(timezone.utc) + timedelta(hours=TOKEN_EXPIRY_HOURS)
+        )
     revoked: Mapped[bool] = mapped_column(Boolean, default=False)
 
     # One session belongs to one user
