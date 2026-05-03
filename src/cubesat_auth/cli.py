@@ -16,6 +16,7 @@ from sqlalchemy import select
 import typer
 
 from cubesat_auth.services.auth_service import login_user, get_current_user, logout_user
+from cubesat_auth.services.account_service import create_account
 from cubesat_auth.db import SessionLocal, init_db
 from cubesat_auth.models import User, AuditLog
 from cubesat_auth.security import hash_password
@@ -139,16 +140,32 @@ def whoami():
 
 # Account management commands
 # --------------------------------
-@account_app.command("list")
+@account_app.command("list", help="List all accounts")
 def list():
     print("Listing all accounts")
 
-@account_app.command("create")
-def create(username: str = typer.Option(..., "--username", "-u", help="Username for the new account."), 
-    role: str = typer.Option("User", "--role", "-r", help="Possible roles are User, SuperUser and Admin. The default role is User.")):
-    print(f"Creating account with username: {username} and role: {role}")
 
-@account_app.command("delete")
+@account_app.command("create", help="Create a new account")
+def create(username: str = typer.Option(..., "--username", "-u", help="Username for the new account."), 
+    role: Role = typer.Option(Role.USER, "--role", "-r", help="Possible roles are User, SuperUser and Admin.")):
+
+    password = typer.prompt("New password", hide_input=True, confirmation_prompt=True)
+
+    if not password:
+        typer.echo("[ERROR] Password can not be empty.")
+        raise typer.Exit(1)
+
+    try:
+        new_user = create_account(username=username, password=password, role=role.value)
+    except ValueError as e:
+        typer.echo(f"[ERROR] {e}")
+        raise typer.Exit(1)
+
+    typer.echo(f"[OK] Account created: {new_user.username}")
+    typer.echo(f"[AUTHZ] Assigned role: {new_user.role}")
+
+
+@account_app.command("delete", help="Delete an account")
 def delete(username: str = typer.Option(..., "--username", "-u", help="Username of the account to delete.")):
     print(f"Deleting account with username: {username}")
 
@@ -165,11 +182,11 @@ def assign_role(username: str = typer.Option(..., "--username", "-u", help="User
 
 # Satellite operations commands
 # --------------------------------
-@sat_app.command("view-data")
+@sat_app.command("view-data", help="Display satellite telemetry data")
 def view_data():
     print("Display satellite telemetry data")
 
-@sat_app.command("send-command")
+@sat_app.command("send-command", help="Send a command to the satellite")
 def send_command(command: str = typer.Option(..., "--command", "-c", help="command to send to the satellite.")):
     print(f"Sending command: {command}")
 # --------------------------------

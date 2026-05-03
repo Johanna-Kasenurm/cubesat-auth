@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, true
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from cubesat_auth.config import TOKEN_EXPIRY_HOURS
@@ -41,7 +41,7 @@ class Session(Base):
         DateTime(timezone=True), 
         default=lambda: datetime.now(timezone.utc) + timedelta(hours=TOKEN_EXPIRY_HOURS)
         )
-    revoked: Mapped[bool] = mapped_column(Boolean, default=False)
+    revoked: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     # One session belongs to one user
     user = relationship("User", back_populates="sessions") # each session belongs to a single user
@@ -49,7 +49,7 @@ class Session(Base):
 
 # Create the audit logs table
 class AuditLog(Base):
-    __tablename__ = "adit_logs"
+    __tablename__ = "audit_logs"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     # Nullable so unknown users can be logged
@@ -62,5 +62,6 @@ class AuditLog(Base):
     details: Mapped[str] = mapped_column(String(255), nullable=True)
     timestamp: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc)
+        default=lambda: datetime.now(timezone.utc),
+        index=True
     )
