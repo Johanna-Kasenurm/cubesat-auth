@@ -8,6 +8,13 @@ from cubesat_auth.audit import write_audit_log
 
 """
 Creates a new user account.
+
+Args:
+    username: The username for the new account.
+    password: The password for the new account.
+    role: The role of the new account.
+    
+Returns the newly created User object.
 Only Admin users are allowed to create new accounts.
 """
 def create_account(username: str, password: str, role: str) -> User:
@@ -59,3 +66,61 @@ def create_account(username: str, password: str, role: str) -> User:
 
         return new_user
         
+
+
+"""
+Deletes a user account.
+
+Args:
+    username: The username of the account to delete.
+
+Only Admin users are allowed to delete accounts.
+"""
+def delete_account(username: str) -> None:
+    current_user, _ = get_current_user()
+
+    # Checks if the current user is an Admin
+    if current_user.role != "Admin":
+        write_audit_log(
+            action="delete-user",
+            result="FAILURE",
+            username=current_user.username,
+            details=f"Failed to delete a user account {username}. Insufficient permissions."
+        )
+        raise ValueError("Only Admin users are allowed to delete accounts")
+
+    # Prevents deleting yourself
+    if current_user.username == username:
+        write_audit_log(
+            action="delete-user",
+            result="FAILURE",
+            username=current_user.username,
+            details=f"Failed to delete a user account {username}. You cannot delete yourself."
+        )
+        raise ValueError("You cannot delete your own account.")
+
+    with SessionLocal() as db:
+        # Gets the user from the database
+        user = db.execute(select(User).where(User.username == username)).scalar_one_or_none()
+
+        # Checks if the user exists
+        if user is None:
+            write_audit_log(
+                action="delete-user",
+                result="FAILURE",
+                username=current_user.username,
+                details=f"Failed to delete a user account {username}. User not found."
+            )
+            raise ValueError(f"User {username} not found.")
+
+        # Deletes the user from the database
+        db.delete(user)
+        db.commit()
+
+        write_audit_log(
+            action="delete-user",
+            result="SUCCESS",
+            username=current_user.username,
+            details=f"User {username} deleted successfully."
+        )
+    
