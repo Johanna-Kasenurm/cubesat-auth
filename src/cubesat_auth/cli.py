@@ -16,7 +16,7 @@ from sqlalchemy import select
 import typer
 
 from cubesat_auth.services.auth_service import login_user, get_current_user, logout_user
-from cubesat_auth.services.account_service import create_account
+from cubesat_auth.services.account_service import create_account, delete_account
 from cubesat_auth.db import SessionLocal, init_db
 from cubesat_auth.models import User, AuditLog
 from cubesat_auth.security import hash_password
@@ -167,7 +167,13 @@ def create(username: str = typer.Option(..., "--username", "-u", help="Username 
 
 @account_app.command("delete", help="Delete an account")
 def delete(username: str = typer.Option(..., "--username", "-u", help="Username of the account to delete.")):
-    print(f"Deleting account with username: {username}")
+    try:
+        delete_account(username)
+    except ValueError as e:
+        typer.echo(f"[ERROR] {e}")
+        raise typer.Exit(1)
+    
+    typer.echo(f"[OK] Account deleted: {username}")
 
 
 @account_app.command("assign-role", help="Assign a role to an account")
