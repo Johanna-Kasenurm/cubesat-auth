@@ -162,3 +162,63 @@ def list_accounts() -> list[User]:
 Assigns a role to a user account.
 Only Admin users are allowed to assign roles.
 """
+def assign_roles(username: str, new_role: str) -> User:
+    current_user, _ = get_current_user()
+
+    # Checks if the current user is an Admin
+    if current_user.role != Role.ADMIN.value:
+        write_audit_log(
+            action="assign-role",
+            result="FAILURE",
+            username=current_user.username,
+            details=f"Failed to assign role to user {username}. Insufficient permissions."
+        )
+        raise ValueError("Only Admin users are allowed to assign roles.")
+
+    with SessionLocal() as db:
+        # Gets the user from the database
+        user = db.execute(select(User).where(User.username == username)).scalar_one_or_none()
+
+        # Checks if the user exists
+        if user is None:
+            write_audit_log(
+                action="assign-role",
+                result="FAILURE",
+                username=current_user.username,
+                details=f"Failed to assign role to user {username}. User not found."
+            )
+            raise ValueError(f"User {username} not found.")
+
+        # Prevents self-demotion
+        if user.username == current_user.username:
+            write_audit_log(
+                action="assign-role",
+                result="FAILURE",
+                username=current_user.username,
+                details=f"Failed to assign role to user {username}. You cannot assign roles to yourself."
+            )
+            raise ValueError("You cannot assign roles to yourself.")
+
+        # Checks if the new role is valid
+        if new_role not in Role.list():
+            write_audit_log(
+                action="assign-role",
+                result="FAILURE",
+                username=current_user.username,
+                details=f"Failed to assign role to user {username}. Invalid role: {new_role}"
+            )
+            raise ValueError(f"Invalid role: {new_role}. Possible roles are: {', '.join(Role.list())}")
+
+        # Update the user's role
+        user.role = new_role
+        db.commit()
+        db.refresh(user)
+
+        write_audit_log(
+            action="assign-role",
+            result="SUCCESS",
+            username=current_user.username,
+            details=f"Role assigned to user {username}. New role: {new_role}"
+        )
+
+        return user
