@@ -40,3 +40,29 @@ def view_satellite_data() -> dict[str, str]:
     return telemetry
 
 
+""" 
+Simulate sending a command to the satellite.
+Only SuperUser and Admin users are allowed to send commands to the satellite.
+"""
+def send_satellite_command(command: str) -> str:
+    current_user, _ = get_current_user()
+
+    # Checks if the current user has the permissions to send commands to the satellite
+    if not has_permission(Role(current_user.role), Permission.SEND_COMMAND):
+        write_audit_log(
+            action="send-command",
+            result="FAILURE",
+            username=current_user.username,
+            details="Failed to send command to the satellite. Insufficient permissions."
+        )
+        raise ValueError("Insufficient permissions to send commands to the satellite.")
+
+    # Simulate sending the command to the satellite
+    write_audit_log(
+        action="send-command",
+        result="SUCCESS",
+        username=current_user.username,
+        details=f"Simulated command sent to the satellite: {command}",
+    )
+
+    return f"Command '{command}' sent to the satellite."
