@@ -11,12 +11,12 @@ It provides command groups for:
 
 """
 
-from enum import Enum
 from sqlalchemy import select
 import typer
 
 from cubesat_auth.services.auth_service import login_user, get_current_user, logout_user
 from cubesat_auth.services.account_service import create_account, delete_account, list_accounts, assign_roles
+from cubesat_auth.services.audit_service import get_audit_logs
 from cubesat_auth.db import SessionLocal, init_db
 from cubesat_auth.models import User, AuditLog
 from cubesat_auth.security import hash_password
@@ -68,19 +68,16 @@ def init(admin_username: str = typer.Option(..., "--admin-username", "-u", help=
 # --------------------------------
 @audit_app.command("list", help="List audit logs")
 def list_audit_logs(limit: int = typer.Option(20, "--limit", "-l", help="Number of log entries to show.")):
-    with SessionLocal() as db:
-        # Query the logs from the database
-        query = select(AuditLog).order_by(AuditLog.timestamp.desc()).limit(limit)
-        logs = db.execute(query).scalars().all()
+    logs = get_audit_logs(limit)
 
-        if not logs:
-            typer.echo("No audit logs found.")
-            return
-        
-        for log in logs:
-            typer.echo(
-                f"[{log.timestamp}]   user={log.username}  action={log.action}  result={log.result}  details={log.details}"
-            )
+    if not logs:
+        typer.echo("No audit logs found.")
+        return
+    
+    for log in logs:
+        typer.echo(
+            f"[{log.timestamp}]   user={log.username}  action={log.action}  result={log.result}  details={log.details}"
+        )
 # --------------------------------
 
 
