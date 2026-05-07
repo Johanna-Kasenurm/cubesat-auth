@@ -16,7 +16,7 @@ from sqlalchemy import select
 import typer
 
 from cubesat_auth.services.auth_service import login_user, get_current_user, logout_user
-from cubesat_auth.services.account_service import create_account, delete_account, list_accounts
+from cubesat_auth.services.account_service import create_account, delete_account, list_accounts, assign_roles
 from cubesat_auth.db import SessionLocal, init_db
 from cubesat_auth.models import User, AuditLog
 from cubesat_auth.security import hash_password
@@ -188,7 +188,15 @@ def delete(username: str = typer.Option(..., "--username", "-u", help="Username 
 @account_app.command("assign-role", help="Assign a role to an account")
 def assign_role(username: str = typer.Option(..., "--username", "-u", help="Username of the account to assign the role to."), 
     role: str = typer.Option(..., "--role", "-r", help="Possible roles are User, SuperUser and Admin.")):
-    print(f"Assigning role {role} to account with username: {username}")
+    
+    try:
+        updated_user = assign_roles(username, role)
+    except ValueError as e:
+        typer.echo(f"[ERROR] {e}")
+        raise typer.Exit(1)
+    
+    typer.echo(f"[OK] Role updated for user: {updated_user.username}")
+    typer.echo(f"[AUTHZ] New role: {updated_user.role}")
 # --------------------------------
 
 
