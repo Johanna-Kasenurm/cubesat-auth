@@ -5,6 +5,7 @@ from cubesat_auth.models import User
 from cubesat_auth.security import hash_password
 from cubesat_auth.services.auth_service import get_current_user
 from cubesat_auth.audit import write_audit_log
+from cubesat_auth.roles import Role
 
 """
 Creates a new user account.
@@ -22,7 +23,7 @@ def create_account(username: str, password: str, role: str) -> User:
     current_user, _ = get_current_user()
 
     # Checks if the current user is an Admin
-    if current_user.role != "Admin":
+    if current_user.role != Role.ADMIN.value:
         write_audit_log(
             action="create-user",
             result="FAILURE",
@@ -80,7 +81,7 @@ def delete_account(username: str) -> None:
     current_user, _ = get_current_user()
 
     # Checks if the current user is an Admin
-    if current_user.role != "Admin":
+    if current_user.role != Role.ADMIN.value:
         write_audit_log(
             action="delete-user",
             result="FAILURE",
@@ -134,7 +135,7 @@ def list_accounts() -> list[User]:
     current_user, _ = get_current_user()
 
     # Checks if the current user is an Admin
-    if current_user.role != "Admin":
+    if current_user.role != Role.ADMIN.value:
         write_audit_log(
             action="list-users",
             result="FAILURE",

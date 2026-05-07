@@ -20,6 +20,7 @@ from cubesat_auth.services.account_service import create_account, delete_account
 from cubesat_auth.db import SessionLocal, init_db
 from cubesat_auth.models import User, AuditLog
 from cubesat_auth.security import hash_password
+from cubesat_auth.roles import Role
 
 
 # Crea the main app and sub-apps
@@ -36,12 +37,6 @@ app.add_typer(sat_app, name="sat")
 app.add_typer(audit_app, name="audit")
 
 
-class Role(str, Enum):
-    ADMIN = "Admin"
-    SUPERUSER = "SuperUser"
-    USER = "User"
-
-
 # Initialise the system and create the initial administrator account
 @app.command()
 def init(admin_username: str = typer.Option(..., "--admin-username", "-u", help="Username for the initial administrator account.")):
@@ -51,7 +46,7 @@ def init(admin_username: str = typer.Option(..., "--admin-username", "-u", help=
 
     with SessionLocal() as db:
         # Check if an administrator account already exists
-        existing = db.execute(select(User).where(User.role == Role.ADMIN)).scalar_one_or_none()
+        existing = db.execute(select(User).where(User.role == Role.ADMIN.value)).scalar_one_or_none()
         if existing:
             typer.echo("[ERROR] An administrator account already exists.")
             raise typer.Exit(1)
@@ -60,7 +55,7 @@ def init(admin_username: str = typer.Option(..., "--admin-username", "-u", help=
         user = User(
             username=admin_username,
             password_hash=hash_password(password),
-            role=Role.ADMIN
+            role=Role.ADMIN.value
             )
         db.add(user)
         db.commit()
@@ -161,7 +156,7 @@ def list():
 
 @account_app.command("create", help="Create a new account")
 def create(username: str = typer.Option(..., "--username", "-u", help="Username for the new account."), 
-    role: Role = typer.Option(Role.USER, "--role", "-r", help="Possible roles are User, SuperUser and Admin.")):
+    role: Role = typer.Option(Role.USER.value, "--role", "-r", help="Possible roles are User, SuperUser and Admin.")):
 
     password = typer.prompt("New password", hide_input=True, confirmation_prompt=True)
 
