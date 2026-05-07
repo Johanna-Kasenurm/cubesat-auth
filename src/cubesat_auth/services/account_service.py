@@ -13,7 +13,7 @@ Args:
     username: The username for the new account.
     password: The password for the new account.
     role: The role of the new account.
-    
+
 Returns the newly created User object.
 Only Admin users are allowed to create new accounts.
 """
@@ -124,3 +124,40 @@ def delete_account(username: str) -> None:
             details=f"User {username} deleted successfully."
         )
     
+
+"""
+Lists all user accounts.
+Returns a list of User objects.
+Only Admin users are allowed to list accounts.
+"""
+def list_accounts() -> list[User]:
+    current_user, _ = get_current_user()
+
+    # Checks if the current user is an Admin
+    if current_user.role != "Admin":
+        write_audit_log(
+            action="list-users",
+            result="FAILURE",
+            username=current_user.username,
+            details="Failed to list user accounts. Insufficient permissions."
+        )
+        raise ValueError("Only Admin users are allowed to list accounts.")
+
+    with SessionLocal() as db:
+        # Gets all users from the database
+        users = db.execute(select(User).order_by(User.username)).scalars().all()
+
+        write_audit_log(
+            action="list-users",
+            result="SUCCESS",
+            username=current_user.username,
+            details="User accounts listed successfully."
+        )
+
+        return list(users)
+
+
+"""
+Assigns a role to a user account.
+Only Admin users are allowed to assign roles.
+"""
