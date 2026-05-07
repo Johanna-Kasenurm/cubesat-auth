@@ -17,8 +17,9 @@ import typer
 from cubesat_auth.services.auth_service import login_user, get_current_user, logout_user
 from cubesat_auth.services.account_service import create_account, delete_account, list_accounts, assign_roles
 from cubesat_auth.services.audit_service import get_audit_logs
+from cubesat_auth.services.satellite_service import view_satellite_data, send_satellite_command
 from cubesat_auth.db import SessionLocal, init_db
-from cubesat_auth.models import User, AuditLog
+from cubesat_auth.models import User
 from cubesat_auth.security import hash_password
 from cubesat_auth.roles import Role
 
@@ -204,7 +205,19 @@ def assign_role(username: str = typer.Option(..., "--username", "-u", help="User
 # --------------------------------
 @sat_app.command("view-data", help="Display satellite telemetry data")
 def view_data():
-    print("Display satellite telemetry data")
+    try:
+        telemetry = view_satellite_data()
+    except ValueError as e:
+        typer.echo(f"[ERROR] {e}")
+        raise typer.Exit(1)
+
+    typer.echo(f"[SAT] Simulated telemetry received")
+    typer.echo('-' * 40)
+    
+    for key, value in telemetry.items():
+        typer.echo(f"{key:<15}: {value}")
+    typer.echo('-' * 40)
+
 
 @sat_app.command("send-command", help="Send a command to the satellite")
 def send_command(command: str = typer.Option(..., "--command", "-c", help="command to send to the satellite.")):
