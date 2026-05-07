@@ -221,7 +221,17 @@ def view_data():
 
 @sat_app.command("send-command", help="Send a command to the satellite")
 def send_command(command: str = typer.Option(..., "--command", "-c", help="command to send to the satellite.")):
-    print(f"Sending command: {command}")
+    try:
+        result = send_satellite_command(command)
+    except ValueError as e:
+        typer.echo(f"[ERROR] {e}")
+        raise typer.Exit(1)
+    
+    typer.echo("[SAT] Simulated uplink transmission")
+    typer.echo('-' * 40)
+    typer.echo(f"[COMMAND] {command}")
+    typer.echo(f"[RESULT] {result}")
+    typer.echo('-' * 40)
 # --------------------------------
 
 
