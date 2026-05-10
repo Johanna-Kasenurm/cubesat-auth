@@ -1,7 +1,14 @@
 from pathlib import Path
+import os
 
-# Define the application directory
-APP_DIR = Path.home() / ".cubesat-auth"
+# Define the application directory and allow test to override it
+_app_dir_override = os.environ.get("CUBESAT_AUTH_APP_DIR")
+
+if _app_dir_override:
+    APP_DIR = Path(_app_dir_override)
+else:
+    APP_DIR = Path.home() / ".cubesat-auth"
+
 # Create the application directory if it doesn't exist
 APP_DIR.mkdir(parents=True, exist_ok=True)
 

@@ -7,4 +7,10 @@ Powershell: ```.\.venv\Scripts\Activate.ps1```
 ```pip install -r requirements.txt```
 ### Deactivate the virtual environment:
 ```deactivate```
+### Run all tests
+```pytest -v```
+### Run one test file
+```pytest tests/test_auth.py -v```
+### Run one test
+```pytest tests/test_auth.py::test_init_and_login_success -v```
 
