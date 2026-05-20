@@ -7,6 +7,7 @@ from cubesat_auth.models import User, Session
 from cubesat_auth.security import hash_password, verify_password, hash_token, generate_token
 from cubesat_auth.sessions import save_local_session, load_local_session, clear_local_session
 from cubesat_auth.audit import write_audit_log
+from cubesat_auth.validation import validate_username
 
 
 # Normalise the timezone of a datetime object to UTC for safe comparison
@@ -25,6 +26,8 @@ Returns (username, role)
 Raises ValueError if authentication fails
 """
 def login_user(username: str, password: str) -> tuple[str, str]:
+    username = validate_username(username)
+
     with SessionLocal() as db:
         # Query the database for the user by username
         query = select(User).where(User.username == username)

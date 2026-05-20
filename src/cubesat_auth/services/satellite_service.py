@@ -1,8 +1,8 @@
-from cubesat_auth.models import User
 from cubesat_auth.services.auth_service import get_current_user
 from cubesat_auth.audit import write_audit_log
 from cubesat_auth.roles import Role
 from cubesat_auth.permissions import Permission, has_permission
+from cubesat_auth.validation import validate_sat_command
 
 
 """
@@ -45,6 +45,8 @@ Simulate sending a command to the satellite.
 Only SuperUser and Admin users are allowed to send commands to the satellite.
 """
 def send_satellite_command(command: str) -> str:
+    command = validate_sat_command(command)
+
     current_user, _ = get_current_user()
 
     # Checks if the current user has the permissions to send commands to the satellite

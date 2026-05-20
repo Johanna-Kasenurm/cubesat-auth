@@ -6,6 +6,8 @@ from cubesat_auth.security import hash_password
 from cubesat_auth.services.auth_service import get_current_user
 from cubesat_auth.audit import write_audit_log
 from cubesat_auth.roles import Role
+from cubesat_auth.permissions import Permission, has_permission
+from cubesat_auth.validation import validate_username
 
 """
 Creates a new user account.
@@ -19,11 +21,13 @@ Returns the newly created User object.
 Only Admin users are allowed to create new accounts.
 """
 def create_account(username: str, password: str, role: str) -> User:
+    username = validate_username(username)
+
     # Gets the current user
     current_user, _ = get_current_user()
 
     # Checks if the current user is an Admin
-    if current_user.role != Role.ADMIN.value:
+    if not has_permission(Role(current_user.role), Permission.CREATE_ACCOUNT):
         write_audit_log(
             action="create-user",
             result="FAILURE",
@@ -78,10 +82,12 @@ Args:
 Only Admin users are allowed to delete accounts.
 """
 def delete_account(username: str) -> None:
+    username = validate_username(username)
+
     current_user, _ = get_current_user()
 
     # Checks if the current user is an Admin
-    if current_user.role != Role.ADMIN.value:
+    if not has_permission(Role(current_user.role), Permission.DELETE_ACCOUNT):
         write_audit_log(
             action="delete-user",
             result="FAILURE",
@@ -135,7 +141,7 @@ def list_accounts() -> list[User]:
     current_user, _ = get_current_user()
 
     # Checks if the current user is an Admin
-    if current_user.role != Role.ADMIN.value:
+    if not has_permission(Role(current_user.role), Permission.LIST_ACCOUNTS):
         write_audit_log(
             action="list-users",
             result="FAILURE",
@@ -163,10 +169,12 @@ Assigns a role to a user account.
 Only Admin users are allowed to assign roles.
 """
 def assign_roles(username: str, new_role: str) -> User:
+    username = validate_username(username)
+
     current_user, _ = get_current_user()
 
     # Checks if the current user is an Admin
-    if current_user.role != Role.ADMIN.value:
+    if not has_permission(Role(current_user.role), Permission.ASSIGN_ROLE):
         write_audit_log(
             action="assign-role",
             result="FAILURE",
