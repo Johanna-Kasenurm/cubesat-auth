@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, true
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from cubesat_auth.config import TOKEN_EXPIRY_HOURS
+from cubesat_auth.config import TOKEN_EXPIRY_HOURS, TOKEN_EXPIRY_MINUTES
 from cubesat_auth.db import Base
 
 
@@ -12,7 +12,7 @@ class User(Base):
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    username: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, index=True)
+    username: Mapped[str] = mapped_column(String(30), unique=True, nullable=False, index=True)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     role: Mapped[str] = mapped_column(String(20), nullable=False, default="User")
     created_at: Mapped[datetime] = mapped_column(
@@ -39,8 +39,11 @@ class Session(Base):
         )
     expires_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), 
-        default=lambda: datetime.now(timezone.utc) + timedelta(hours=TOKEN_EXPIRY_HOURS)
+        default=lambda: datetime.now(timezone.utc) + timedelta(minutes=TOKEN_EXPIRY_MINUTES)
         )
+    """DateTime(timezone=True), 
+    default=lambda: datetime.now(timezone.utc) + timedelta(hours=TOKEN_EXPIRY_HOURS)
+    )"""
     revoked: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     # One session belongs to one user

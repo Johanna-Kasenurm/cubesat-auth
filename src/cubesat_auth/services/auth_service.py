@@ -2,7 +2,7 @@ from datetime import datetime, timezone, timedelta
 from sqlalchemy import select
 
 from cubesat_auth.db import SessionLocal
-from cubesat_auth.config import TOKEN_EXPIRY_HOURS, MAX_FAILED_LOGIN_ATTEMPTS, ACCOUNT_LOCK_MINUTES
+from cubesat_auth.config import TOKEN_EXPIRY_HOURS, TOKEN_EXPIRY_MINUTES, MAX_FAILED_LOGIN_ATTEMPTS, ACCOUNT_LOCK_MINUTES
 from cubesat_auth.models import User, Session
 from cubesat_auth.security import hash_password, verify_password, hash_token, generate_token
 from cubesat_auth.sessions import save_local_session, load_local_session, clear_local_session
@@ -105,7 +105,8 @@ def login_user(username: str, password: str) -> tuple[str, str]:
         db.commit()
 
         # Save the raw session token to the local file
-        save_local_session(user.username, raw_token, datetime.now(timezone.utc), datetime.now(timezone.utc) + timedelta(hours=TOKEN_EXPIRY_HOURS))
+        # timedelta(hours=TOKEN_EXPIRY_HOURS)
+        save_local_session(user.username, raw_token, datetime.now(timezone.utc), datetime.now(timezone.utc) + timedelta(minutes=TOKEN_EXPIRY_MINUTES))
 
         write_audit_log(
             action="login",
@@ -143,6 +144,7 @@ def get_current_user() -> tuple[User, Session]:
             raise ValueError("Invalid session. Please login again.")
         
         if normalise_utc(session_obj.expires_at) < datetime.now(timezone.utc):
+            logout_user()
             raise ValueError("Session has expired. Please login again.")
 
         # Get the user from the session
